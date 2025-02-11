@@ -44,7 +44,7 @@ class EventController @Inject()(@Named(ActorNames.EVENT_ACTOR) eventActor: Actor
         val headers = commonHeaders()
         val body = requestBody()
         val content = body.getOrDefault(schemaName, new java.util.HashMap()).asInstanceOf[java.util.Map[String, Object]];
-        if (content.containsKey("status")) {
+        if (content.containsKey("status") && "Live".equals(content.get("status").toString)) {
             getErrorResponse(ApiId.UPDATE_EVENT, apiVersion, "VALIDATION_ERROR", "status update is restricted, use status APIs.")
         } else {
             content.putAll(headers)
@@ -77,5 +77,18 @@ class EventController @Inject()(@Named(ActorNames.EVENT_ACTOR) eventActor: Actor
         val contentRequest = getRequest(content, headers, "retireContent")
         setRequestContext(contentRequest, version, objectType, schemaName)
         getResult(ApiId.RETIRE_CONTENT, eventActor, contentRequest, version = apiVersion)
+    }
+
+    override def reviewReject(identifier: String) = Action.async { implicit request =>
+        val headers = commonHeaders()
+        val body = requestBody()
+        val content = body.getOrDefault(schemaName, new java.util.HashMap()).asInstanceOf[java.util.Map[String, Object]];
+        content.putAll(headers)
+        content.putAll(Map("identifier" -> identifier).asJava)
+        val contentRequest = getRequest(content, headers, "rejectEvent")
+        contentRequest.put("mode", "edit")
+        setRequestContext(contentRequest, version, objectType, schemaName)
+        contentRequest.getContext.put("identifier", identifier);
+        getResult(ApiId.REJECT_EVENT, eventActor, contentRequest, version = apiVersion)
     }
 }
