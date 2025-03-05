@@ -86,7 +86,8 @@
                 "audio/webm",
                 "audio/x-wav",
                 "audio/wav",
-                "application/json"
+                "application/json",
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation"
             ]
         },
         "osId": {
