@@ -247,7 +247,7 @@ public class SearchProcessor {
 		if (searchDTO.isFuzzySearch())
 			relevanceSort = true;
 
-		if (searchDTO.getSortBy()!=null)
+		if (MapUtils.isNotEmpty(searchDTO.getSortBy()))
 			relevanceSort = false;
 
 		searchSourceBuilder.query(query);
