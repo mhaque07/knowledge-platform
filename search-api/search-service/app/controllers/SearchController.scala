@@ -61,8 +61,7 @@ class SearchController @Inject()(@Named(ActorNames.SEARCH_ACTOR) searchActor: Ac
     def searchV4() = loggingAction.async { implicit request =>
         val internalReq = getRequest(ApiId.APPLICATION_SEARCH)
         val requestMap: java.util.Map[String, Any] = internalReq.getRequest.asInstanceOf[util.Map[String, Any]]
-        val isSecureSettingsDisabled = requestMap.getOrDefault(SearchConstants.isSecureSettingsDisabled, true).asInstanceOf[Boolean]
-        requestMap.put(SearchConstants.isSecureSettingsDisabled, isSecureSettingsDisabled)
+        requestMap.put(SearchConstants.isSecureSettingsDisabled, true)
         setHeaderContext(internalReq)
         val filters = internalReq.getRequest.getOrDefault(SearchConstants.filters, new java.util.HashMap()).asInstanceOf[java.util.Map[String, Object]]
         val visibilityObject = filters.getOrDefault("visibility","")
