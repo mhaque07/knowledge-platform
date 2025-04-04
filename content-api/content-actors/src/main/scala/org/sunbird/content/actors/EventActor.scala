@@ -1,6 +1,7 @@
 package org.sunbird.content.actors
 
 import org.apache.commons.lang.StringUtils
+import org.sunbird.cache.impl.RedisCache
 import org.sunbird.common.Platform
 import org.sunbird.cloudstore.StorageService
 import org.sunbird.common.dto.{Request, Response, ResponseHandler}
@@ -17,7 +18,6 @@ import java.util
 import javax.inject.Inject
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.concurrent.Future
-
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters
 import scala.collection.JavaConverters._
@@ -38,6 +38,7 @@ class EventActor @Inject()(implicit oec: OntologyEngineContext, ss: StorageServi
   }
 
   override def update(request: Request): Future[Response] = {
+    RedisCache.delete(request.get("identifier").asInstanceOf[String])
     verifyStandaloneEventAndApply(super.update, request)
   }
 
