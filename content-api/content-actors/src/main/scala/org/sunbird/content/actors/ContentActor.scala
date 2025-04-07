@@ -29,6 +29,8 @@ import org.sunbird.graph.utils.NodeUtil
 import org.sunbird.managers.HierarchyManager
 import org.sunbird.managers.HierarchyManager.hierarchyPrefix
 
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import scala.collection.JavaConverters
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
@@ -66,6 +68,21 @@ class ContentActor @Inject() (implicit oec: OntologyEngineContext, ss: StorageSe
 	def create(request: Request): Future[Response] = {
 		populateDefaultersForCreation(request)
 		RequestUtil.restrictProperties(request)
+		val startDateTimeStr = request.getRequest.getOrDefault("startDateTime", "").asInstanceOf[String]
+		val endDateTimeStr = request.getRequest.getOrDefault("endDateTime", "").asInstanceOf[String]
+		if (StringUtils.isNotBlank(startDateTimeStr) && StringUtils.isNotBlank(endDateTimeStr)) {
+			// Convert startDateTime string to epoch milliseconds
+			val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXX")
+			val startDateTime = ZonedDateTime.parse(startDateTimeStr, formatter)
+			val startDateTimeEpochMillis = startDateTime.toInstant.toEpochMilli
+			request.getRequest.put("startDateTime", startDateTimeStr)
+			request.getRequest.put("startDateTimeInEpoch", startDateTimeEpochMillis.asInstanceOf[java.lang.Long])
+
+			val endDateTime = ZonedDateTime.parse(endDateTimeStr, formatter)
+			val endDateTimeEpochMillis = endDateTime.toInstant.toEpochMilli
+			request.getRequest.put("endDateTime", endDateTimeStr)
+			request.getRequest.put("endDateTimeInEpoch", endDateTimeEpochMillis.asInstanceOf[java.lang.Long])
+		}
 		request.getRequest.put("cqfVersion", System.currentTimeMillis().toString)
 		DataNode.create(request, dataModifier).map(node => {
 			ResponseHandler.OK.put("identifier", node.getIdentifier).put("node_id", node.getIdentifier)
@@ -137,6 +154,21 @@ class ContentActor @Inject() (implicit oec: OntologyEngineContext, ss: StorageSe
 	}
 
 	def update(request: Request): Future[Response] = {
+		val startDateTimeStr = request.getRequest.getOrDefault("startDateTime", "").asInstanceOf[String]
+		val endDateTimeStr = request.getRequest.getOrDefault("endDateTime", "").asInstanceOf[String]
+		if (StringUtils.isNotBlank(startDateTimeStr) && StringUtils.isNotBlank(endDateTimeStr)) {
+			// Convert startDateTime string to epoch milliseconds
+			val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSXX")
+			val startDateTime = ZonedDateTime.parse(startDateTimeStr, formatter)
+			val startDateTimeEpochMillis = startDateTime.toInstant.toEpochMilli
+			request.getRequest.put("startDateTime", startDateTimeStr)
+			request.getRequest.put("startDateTimeInEpoch", startDateTimeEpochMillis.asInstanceOf[java.lang.Long])
+
+			val endDateTime = ZonedDateTime.parse(endDateTimeStr, formatter)
+			val endDateTimeEpochMillis = endDateTime.toInstant.toEpochMilli
+			request.getRequest.put("endDateTime", endDateTimeStr)
+			request.getRequest.put("endDateTimeInEpoch", endDateTimeEpochMillis.asInstanceOf[java.lang.Long])
+		}
 		populateDefaultersForUpdation(request)
 		if (StringUtils.isBlank(request.getRequest.getOrDefault("versionKey", "").asInstanceOf[String])) throw new ClientException("ERR_INVALID_REQUEST", "Please Provide Version Key!")
 		RequestUtil.restrictProperties(request)
