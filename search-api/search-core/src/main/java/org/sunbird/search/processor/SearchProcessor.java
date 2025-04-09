@@ -410,9 +410,10 @@ public class SearchProcessor {
 				boolQuery.must(queryBuilder);
 				continue;
 			}
-
-			propertyName = propertyName + SearchConstants.RAW_FIELD_EXTENSION;
-
+			List<String> nonTextFields = ElasticSearchUtil.getNonTextFields();
+			if (!nonTextFields.contains(propertyName)) {
+				propertyName = propertyName + SearchConstants.RAW_FIELD_EXTENSION;
+			}
 			switch (opertation) {
 			case SearchConstants.SEARCH_OPERATION_EQUAL: {
 				if (MapUtils.isNotEmpty(valuesMap)) {
@@ -626,33 +627,28 @@ public class SearchProcessor {
 	 * @return
 	 */
 	private QueryBuilder getRangeQuery(String propertyName, List<Object> values, String operation) {
-		BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery();
+		RangeQueryBuilder rangeQuery = QueryBuilders.rangeQuery(propertyName);
 		for (Object value : values) {
 			switch (operation) {
-			case SearchConstants.SEARCH_OPERATION_GREATER_THAN: {
-				queryBuilder.should(QueryBuilders
-						.rangeQuery(propertyName).gt(value));
-				break;
-			}
-			case SearchConstants.SEARCH_OPERATION_GREATER_THAN_EQUALS: {
-				queryBuilder.should(QueryBuilders
-						.rangeQuery(propertyName).gte(value));
-				break;
-			}
-			case SearchConstants.SEARCH_OPERATION_LESS_THAN: {
-				queryBuilder.should(QueryBuilders
-						.rangeQuery(propertyName).lt(value));
-				break;
-			}
-			case SearchConstants.SEARCH_OPERATION_LESS_THAN_EQUALS: {
-				queryBuilder.should(QueryBuilders
-						.rangeQuery(propertyName).lte(value));
-				break;
-			}
+				case SearchConstants.SEARCH_OPERATION_GREATER_THAN: {
+					rangeQuery.gt(value);
+					break;
+				}
+				case SearchConstants.SEARCH_OPERATION_GREATER_THAN_EQUALS: {
+					rangeQuery.gte(value);
+					break;
+				}
+				case SearchConstants.SEARCH_OPERATION_LESS_THAN: {
+					rangeQuery.lt(value);
+					break;
+				}
+				case SearchConstants.SEARCH_OPERATION_LESS_THAN_EQUALS: {
+					rangeQuery.lte(value);
+					break;
+				}
 			}
 		}
-
-		return queryBuilder;
+		return rangeQuery;
 	}
 
 	/**
