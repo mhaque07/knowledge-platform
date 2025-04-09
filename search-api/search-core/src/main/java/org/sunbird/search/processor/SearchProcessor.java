@@ -285,14 +285,21 @@ public class SearchProcessor {
 	private void setAggregations(List<Map<String, Object>> groupByList,
 			SearchSourceBuilder searchSourceBuilder) {
 		TermsAggregationBuilder termBuilder = null;
+		List<String> nonTextFields = ElasticSearchUtil.getNonTextFields();
 		if (groupByList != null && !groupByList.isEmpty()) {
 			HashMap<String, List<String>> nestedAggregation = new HashMap<>();
 			for (Map<String, Object> groupByMap : groupByList) {
 				String groupByParent = (String) groupByMap.get("groupByParent");
 				if (!groupByParent.contains(".")) {
-					termBuilder = AggregationBuilders.terms(groupByParent)
-						.field(groupByParent + SearchConstants.RAW_FIELD_EXTENSION)
-						.size(ElasticSearchUtil.defaultResultLimit);
+					if (nonTextFields.contains(groupByParent)) {
+						termBuilder = AggregationBuilders.terms(groupByParent)
+								.field(groupByParent)
+								.size(ElasticSearchUtil.defaultResultLimit);
+					}else {
+						termBuilder = AggregationBuilders.terms(groupByParent)
+								.field(groupByParent + SearchConstants.RAW_FIELD_EXTENSION)
+								.size(ElasticSearchUtil.defaultResultLimit);
+					}
 				List<String> groupByChildList = (List<String>) groupByMap.get("groupByChildList");
 				if (groupByChildList != null && !groupByChildList.isEmpty()) {
 					for (String childGroupBy : groupByChildList) {
