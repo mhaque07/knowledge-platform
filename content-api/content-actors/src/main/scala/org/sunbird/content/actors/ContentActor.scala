@@ -84,10 +84,10 @@ class ContentActor @Inject() (implicit oec: OntologyEngineContext, ss: StorageSe
 				request.getRequest.put("startDateTime", formattedStartDateTimeIst)
 				request.getRequest.put("startDateTimeInEpoch", startDateTimeEpochMillis.asInstanceOf[java.lang.Long])
 
-				val endDateTimeUtc = ZonedDateTime.parse(startDateTimeStr, inputUtcFormatter)
+				val endDateTimeUtc = ZonedDateTime.parse(endDateTimeStr, inputUtcFormatter)
 				val endDateTimeIst = endDateTimeUtc.withZoneSameInstant(istZoneId)
 				val formattedEndDateTimeIst = endDateTimeIst.format(outputIstFormatter)
-				val endDateTimeEpochMillis = startDateTimeIst.toInstant.toEpochMilli
+				val endDateTimeEpochMillis = endDateTimeIst.toInstant.toEpochMilli
 
 				request.getRequest.put("endDateTime", formattedEndDateTimeIst)
 				request.getRequest.put("endDateTimeInEpoch", endDateTimeEpochMillis.asInstanceOf[java.lang.Long])
@@ -186,10 +186,10 @@ class ContentActor @Inject() (implicit oec: OntologyEngineContext, ss: StorageSe
 				request.getRequest.put("startDateTime", formattedStartDateTimeIst)
 				request.getRequest.put("startDateTimeInEpoch", startDateTimeEpochMillis.asInstanceOf[java.lang.Long])
 
-				val endDateTimeUtc = ZonedDateTime.parse(startDateTimeStr, inputUtcFormatter)
+				val endDateTimeUtc = ZonedDateTime.parse(endDateTimeStr, inputUtcFormatter)
 				val endDateTimeIst = endDateTimeUtc.withZoneSameInstant(istZoneId)
 				val formattedEndDateTimeIst = endDateTimeIst.format(outputIstFormatter)
-				val endDateTimeEpochMillis = startDateTimeIst.toInstant.toEpochMilli
+				val endDateTimeEpochMillis = endDateTimeIst.toInstant.toEpochMilli
 
 				request.getRequest.put("endDateTime", formattedEndDateTimeIst)
 				request.getRequest.put("endDateTimeInEpoch", endDateTimeEpochMillis.asInstanceOf[java.lang.Long])
