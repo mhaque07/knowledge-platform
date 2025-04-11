@@ -38,13 +38,43 @@ class EventActor @Inject()(implicit oec: OntologyEngineContext, ss: StorageServi
   }
 
   override def update(request: Request): Future[Response] = {
-    RedisCache.delete(request.get("identifier").asInstanceOf[String])
-    verifyStandaloneEventAndApply(super.update, request)
+    populateDefaultersForUpdation(request)
+    val versionKey = request.getRequest.getOrDefault("versionKey", "").asInstanceOf[String]
+    if (StringUtils.isBlank(versionKey)) {
+      throw new ClientException("ERR_INVALID_REQUEST", "Please Provide Version Key!")
+    }
+    RequestUtil.restrictProperties(request)
+    val reviewStatus: String = request.getRequest.getOrDefault("reviewStatus", "").asInstanceOf[String]
+    if (reviewStatus == null || reviewStatus.isEmpty) {
+      request.getRequest.put("cqfVersion", System.currentTimeMillis().toString)
+    }
+    DataNode.update(request, dataModifier).map(node => {
+      val identifier: String = node.getIdentifier.replace(".img", "")
+      ResponseHandler.OK.put("node_id", identifier)
+        .put("identifier", identifier)
+        .put("versionKey", node.getMetadata.get("versionKey"))
+    })
   }
 
   def publish(request: Request): Future[Response] = {
     TelemetryManager.log("EventActor::publish Identifier: " + request.getRequest.getOrDefault("identifier", ""))
-    verifyStandaloneEventAndApply(super.update, request, true)
+    val identifier = request.get("identifier").asInstanceOf[String]
+    val updatedIdentifier = if (!identifier.endsWith(".img")) s"$identifier.img" else identifier
+    request.put("identifier", updatedIdentifier)
+    // Check if the node exists
+    DataNode.read(request).flatMap { node =>
+      // If the node exists, proceed with update and delete
+      DataNode.updatev2(request).flatMap { _ =>
+        DataNode.delete(request)
+        request.put("identifier", updatedIdentifier.replace(".img", ""))
+        verifyStandaloneEventAndApply(super.update, request, true)
+      }
+    }.recoverWith {
+      case ex: Exception =>
+        // If the node does not exist, directly call verifyStandaloneEventAndApply
+        request.put("identifier", updatedIdentifier.replace(".img", ""))
+        verifyStandaloneEventAndApply(super.update, request, true)
+    }
   }
 
   override def discard(request: Request): Future[Response] = {
