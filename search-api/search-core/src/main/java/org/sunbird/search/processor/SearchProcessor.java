@@ -285,14 +285,21 @@ public class SearchProcessor {
 	private void setAggregations(List<Map<String, Object>> groupByList,
 			SearchSourceBuilder searchSourceBuilder) {
 		TermsAggregationBuilder termBuilder = null;
+		List<String> nonTextFields = ElasticSearchUtil.getNonTextFields();
 		if (groupByList != null && !groupByList.isEmpty()) {
 			HashMap<String, List<String>> nestedAggregation = new HashMap<>();
 			for (Map<String, Object> groupByMap : groupByList) {
 				String groupByParent = (String) groupByMap.get("groupByParent");
 				if (!groupByParent.contains(".")) {
-					termBuilder = AggregationBuilders.terms(groupByParent)
-						.field(groupByParent + SearchConstants.RAW_FIELD_EXTENSION)
-						.size(ElasticSearchUtil.defaultResultLimit);
+					if (nonTextFields.contains(groupByParent)) {
+						termBuilder = AggregationBuilders.terms(groupByParent)
+								.field(groupByParent)
+								.size(ElasticSearchUtil.defaultResultLimit);
+					}else {
+						termBuilder = AggregationBuilders.terms(groupByParent)
+								.field(groupByParent + SearchConstants.RAW_FIELD_EXTENSION)
+								.size(ElasticSearchUtil.defaultResultLimit);
+					}
 				List<String> groupByChildList = (List<String>) groupByMap.get("groupByChildList");
 				if (groupByChildList != null && !groupByChildList.isEmpty()) {
 					for (String childGroupBy : groupByChildList) {
@@ -410,9 +417,10 @@ public class SearchProcessor {
 				boolQuery.must(queryBuilder);
 				continue;
 			}
-
-			propertyName = propertyName + SearchConstants.RAW_FIELD_EXTENSION;
-
+			List<String> nonTextFields = ElasticSearchUtil.getNonTextFields();
+			if (!nonTextFields.contains(propertyName)) {
+				propertyName = propertyName + SearchConstants.RAW_FIELD_EXTENSION;
+			}
 			switch (opertation) {
 			case SearchConstants.SEARCH_OPERATION_EQUAL: {
 				if (MapUtils.isNotEmpty(valuesMap)) {
@@ -626,33 +634,28 @@ public class SearchProcessor {
 	 * @return
 	 */
 	private QueryBuilder getRangeQuery(String propertyName, List<Object> values, String operation) {
-		BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery();
+		RangeQueryBuilder rangeQuery = QueryBuilders.rangeQuery(propertyName);
 		for (Object value : values) {
 			switch (operation) {
-			case SearchConstants.SEARCH_OPERATION_GREATER_THAN: {
-				queryBuilder.should(QueryBuilders
-						.rangeQuery(propertyName).gt(value));
-				break;
-			}
-			case SearchConstants.SEARCH_OPERATION_GREATER_THAN_EQUALS: {
-				queryBuilder.should(QueryBuilders
-						.rangeQuery(propertyName).gte(value));
-				break;
-			}
-			case SearchConstants.SEARCH_OPERATION_LESS_THAN: {
-				queryBuilder.should(QueryBuilders
-						.rangeQuery(propertyName).lt(value));
-				break;
-			}
-			case SearchConstants.SEARCH_OPERATION_LESS_THAN_EQUALS: {
-				queryBuilder.should(QueryBuilders
-						.rangeQuery(propertyName).lte(value));
-				break;
-			}
+				case SearchConstants.SEARCH_OPERATION_GREATER_THAN: {
+					rangeQuery.gt(value);
+					break;
+				}
+				case SearchConstants.SEARCH_OPERATION_GREATER_THAN_EQUALS: {
+					rangeQuery.gte(value);
+					break;
+				}
+				case SearchConstants.SEARCH_OPERATION_LESS_THAN: {
+					rangeQuery.lt(value);
+					break;
+				}
+				case SearchConstants.SEARCH_OPERATION_LESS_THAN_EQUALS: {
+					rangeQuery.lte(value);
+					break;
+				}
 			}
 		}
-
-		return queryBuilder;
+		return rangeQuery;
 	}
 
 	/**

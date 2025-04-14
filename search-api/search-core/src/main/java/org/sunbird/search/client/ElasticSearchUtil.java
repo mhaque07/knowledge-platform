@@ -136,6 +136,11 @@ public class ElasticSearchUtil {
 		return querySearchFields;
 	}
 
+	public static List<String> getNonTextFields() {
+		List<String> nonTextFields = Platform.config.getStringList("non.text.fields");
+		return nonTextFields;
+	}
+
 	public List<String> getDateFields() {
 		List<String> dateFields = Platform.config.getStringList("search.fields.date");
 		return dateFields;
