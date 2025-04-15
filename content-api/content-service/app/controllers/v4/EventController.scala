@@ -88,4 +88,15 @@ class EventController @Inject()(@Named(ActorNames.EVENT_ACTOR) eventActor: Actor
         contentRequest.getContext.put("identifier", identifier);
         getResult(ApiId.REJECT_EVENT, eventActor, contentRequest, version = apiVersion)
     }
+
+    override def systemUpdate(identifier: String) = Action.async { implicit request =>
+        val headers = commonHeaders()
+        val body = requestBody()
+        val content = body.getOrDefault(schemaName, new java.util.HashMap()).asInstanceOf[java.util.Map[String, Object]];
+        content.putAll(headers)
+        val contentRequest = getRequest(content, headers, "systemUpdate")
+        setRequestContext(contentRequest, version, objectType, schemaName)
+        contentRequest.getContext.put("identifier", identifier);
+        getResult(ApiId.SYSTEM_UPDATE_CONTENT, eventActor, contentRequest, version = apiVersion)
+    }
 }

@@ -33,6 +33,7 @@ class EventActor @Inject()(implicit oec: OntologyEngineContext, ss: StorageServi
       case "discardContent" => discard(request)
       case "publishContent" => publish(request)
       case "rejectEvent" => rejectEvent(request)
+      case "systemUpdate" => systemUpdate(request)
       case _ => ERROR(request.getOperation)
     }
   }
@@ -173,5 +174,34 @@ class EventActor @Inject()(implicit oec: OntologyEngineContext, ss: StorageServi
         ResponseHandler.OK.put("node_id", identifier).put("identifier", identifier)
       })
     }).flatMap(f => f)
+  }
+
+  override def systemUpdate(request: Request): Future[Response] = {
+    RedisCache.delete(request.get("identifier").asInstanceOf[String])
+    val identifier = request.get("identifier").asInstanceOf[String]
+    val updatedIdentifier = if (!identifier.endsWith(".img")) s"$identifier.img" else identifier
+    DataNode.read(request).flatMap { node =>
+      // Extract attributes to be updated from the request body
+      val attributesToUpdate = request.getRequest.asInstanceOf[java.util.Map[String, AnyRef]]
+
+      // Append attributes from the request to the node's metadata
+      attributesToUpdate.forEach(new java.util.function.BiConsumer[String, AnyRef] {
+        override def accept(key: String, value: AnyRef): Unit = {
+          node.getMetadata.put(key, value)
+        }
+      })
+      // Save the updated node
+      DataNode.updatev2(request, _ => node).recover {
+        case ex: Exception =>
+          TelemetryManager.error("Error occurred during updatev2 operation", ex)
+          ResponseHandler.ERROR(ResponseCode.SERVER_ERROR, "ERR_UPDATE_FAILED", ex.getMessage)
+      }.map(response => {
+        if (response.getResponseCode == ResponseCode.OK) {
+          ResponseHandler.OK
+        } else {
+          response
+        }
+      })
+    }
   }
 }
