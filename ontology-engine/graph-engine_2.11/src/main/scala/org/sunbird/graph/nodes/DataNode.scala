@@ -341,7 +341,7 @@ object DataNode {
     }
   }
 
-  def updatev2(request: Request, dataModifier: (Node) => Node = defaultDataModifier)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Response] = {
+  def updatev2(request: Request, dataModifier: (Node) => Node = defaultDataModifier, flag: Boolean)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Response] = {
     val identifier = request.get("identifier").asInstanceOf[String]
     if (StringUtils.isBlank(identifier)) {
       throw new ClientException("ERR_INVALID_REQUEST", "Identifier is required for update")
@@ -349,7 +349,9 @@ object DataNode {
     // Read the node to be updated
     DataNode.read(request).flatMap { node =>
       val updatedNode = dataModifier(node) // Apply the data modifier to update the node
-      updatedNode.setIdentifier(identifier.replace(".img",""))
+      if(flag) {
+        updatedNode.setIdentifier(identifier.replace(".img",""))
+      }
       oec.graphService.upsertNode(request.graphId, updatedNode, request).map { updatedNode =>
         val response = new Response
         response.put("message", "Node updated successfully")

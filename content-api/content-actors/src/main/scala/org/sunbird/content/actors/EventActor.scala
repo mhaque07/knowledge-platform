@@ -65,7 +65,7 @@ class EventActor @Inject()(implicit oec: OntologyEngineContext, ss: StorageServi
     // Check if the node exists
     DataNode.read(request).flatMap { node =>
       // If the node exists, proceed with update and delete
-      DataNode.updatev2(request).flatMap { _ =>
+      DataNode.updatev2(request, flag = true).flatMap { _ =>
         request.put("identifier", updatedIdentifier.replace(".img", ""))
         verifyStandaloneEventAndApply(super.update, request, true)
       }
@@ -191,7 +191,7 @@ class EventActor @Inject()(implicit oec: OntologyEngineContext, ss: StorageServi
         }
       })
       // Save the updated node
-      DataNode.updatev2(request, _ => node).recover {
+      DataNode.updatev2(request, _ => node, flag = false).recover {
         case ex: Exception =>
           TelemetryManager.error("Error occurred during updatev2 operation", ex)
           ResponseHandler.ERROR(ResponseCode.SERVER_ERROR, "ERR_UPDATE_FAILED", ex.getMessage)
