@@ -66,6 +66,7 @@ class EventActor @Inject()(implicit oec: OntologyEngineContext, ss: StorageServi
     DataNode.read(request).flatMap { node =>
       // If the node exists, proceed with update and delete
       DataNode.updatev2(request, flag = true).flatMap { _ =>
+        DataNode.delete(request)
         request.put("identifier", updatedIdentifier.replace(".img", ""))
         verifyStandaloneEventAndApply(super.update, request, true)
       }
@@ -74,10 +75,6 @@ class EventActor @Inject()(implicit oec: OntologyEngineContext, ss: StorageServi
         // If the node does not exist, directly call verifyStandaloneEventAndApply
         request.put("identifier", updatedIdentifier.replace(".img", ""))
         verifyStandaloneEventAndApply(super.update, request, true)
-    }
-    DataNode.delete(request).recoverWith {
-      case ex: Exception =>
-        Future.successful(ResponseHandler.OK)
     }
   }
 
