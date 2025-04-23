@@ -85,17 +85,22 @@ trait VersioningNode extends IDefinition {
                             node.getMetadata.put("status", "Draft")
                             node.getMetadata.put("prevStatus", status)
                             node.getMetadata.put(AuditProperties.lastStatusChangedOn.name, DateUtils.formatCurrentDate())
-                            oec.graphService.addNode(node.getGraphId, node).map(imgNode => {
-                                imgNode.getMetadata.put("isImageNodeCreated", "yes");
-                                copyExternalProps(identifier, node.getGraphId, imgNode.getObjectType.toLowerCase().replace("image", "")).map(response => {
-                                    if(!ResponseHandler.checkError(response)) {
-                                        if(null != response.getResult && !response.getResult.isEmpty)
-                                            imgNode.setExternalData(response.getResult)
+                            oec.graphService.addNode(node.getGraphId, node).map { imgNode =>
+                                imgNode.getMetadata.put("isImageNodeCreated", "yes")
+                                val category = node.getMetadata.get("category").asInstanceOf[String]
+                                if (!"event".equalsIgnoreCase(category)) {
+                                    copyExternalProps(identifier, node.getGraphId, imgNode.getObjectType.toLowerCase().replace("image", "")).map { response =>
+                                        if (!ResponseHandler.checkError(response)) {
+                                            if (null != response.getResult && !response.getResult.isEmpty)
+                                                imgNode.setExternalData(response.getResult)
+                                        }
+                                        imgNode
                                     }
-                                    imgNode
-                                })
-                            }).flatMap(f=>f)
-                        } else
+                                } else {
+                                    Future.successful(imgNode)
+                                }
+                            }.flatMap(f => f)
+                        }else
                             throw e.getCause
                     }
                 }

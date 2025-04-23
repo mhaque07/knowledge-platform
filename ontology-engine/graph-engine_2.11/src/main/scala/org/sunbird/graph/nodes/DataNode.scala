@@ -323,4 +323,45 @@ object DataNode {
     })
   }
 
+  def delete(request: Request)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Response] = {
+    val identifier = request.get("identifier").asInstanceOf[String]
+    val updatedIdentifier = if (!identifier.endsWith(".img")) s"$identifier.img" else identifier
+    request.put("identifier", updatedIdentifier)
+    if (StringUtils.isBlank(identifier)) {
+      throw new ClientException("ERR_INVALID_REQUEST", "Identifier is required for deletion")
+    }
+    // Perform the deletion operation
+    oec.graphService.deleteNode(request.graphId, identifier, request).map { _ =>
+      val response = new Response
+      response.put("message", "Node deleted successfully")
+      response
+    }.recover {
+      case ex: Exception =>
+        throw new ClientException("ERR_NODE_DELETION_FAILED", s"Failed to delete node with identifier: $identifier", ex)
+    }
+  }
+
+  def updatev2(request: Request, dataModifier: (Node) => Node = defaultDataModifier, flag: Boolean)(implicit oec: OntologyEngineContext, ec: ExecutionContext): Future[Response] = {
+    val identifier = request.get("identifier").asInstanceOf[String]
+    if (StringUtils.isBlank(identifier)) {
+      throw new ClientException("ERR_INVALID_REQUEST", "Identifier is required for update")
+    }
+    // Read the node to be updated
+    DataNode.read(request).flatMap { node =>
+      val updatedNode = dataModifier(node) // Apply the data modifier to update the node
+      if(flag) {
+        updatedNode.setIdentifier(identifier.replace(".img",""))
+      }
+      oec.graphService.upsertNode(request.graphId, updatedNode, request).map { updatedNode =>
+        val response = new Response
+        response.put("message", "Node updated successfully")
+        response.put("identifier", updatedNode.getIdentifier)
+        response
+      }
+    }.recover {
+      case ex: Exception =>
+        throw new ClientException("ERR_NODE_UPDATE_FAILED", s"Failed to update node with identifier: $identifier", ex)
+    }
+  }
+
 }

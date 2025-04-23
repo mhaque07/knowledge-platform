@@ -33,18 +33,49 @@ class EventActor @Inject()(implicit oec: OntologyEngineContext, ss: StorageServi
       case "discardContent" => discard(request)
       case "publishContent" => publish(request)
       case "rejectEvent" => rejectEvent(request)
+      case "systemUpdate" => systemUpdate(request)
       case _ => ERROR(request.getOperation)
     }
   }
 
   override def update(request: Request): Future[Response] = {
-    RedisCache.delete(request.get("identifier").asInstanceOf[String])
-    verifyStandaloneEventAndApply(super.update, request)
+    populateDefaultersForUpdation(request)
+    val versionKey = request.getRequest.getOrDefault("versionKey", "").asInstanceOf[String]
+    if (StringUtils.isBlank(versionKey)) {
+      throw new ClientException("ERR_INVALID_REQUEST", "Please Provide Version Key!")
+    }
+    RequestUtil.restrictProperties(request)
+    val reviewStatus: String = request.getRequest.getOrDefault("reviewStatus", "").asInstanceOf[String]
+    if (reviewStatus == null || reviewStatus.isEmpty) {
+      request.getRequest.put("cqfVersion", System.currentTimeMillis().toString)
+    }
+    DataNode.update(request, dataModifier).map(node => {
+      val identifier: String = node.getIdentifier.replace(".img", "")
+      ResponseHandler.OK.put("node_id", identifier)
+        .put("identifier", identifier)
+        .put("versionKey", node.getMetadata.get("versionKey"))
+    })
   }
 
   def publish(request: Request): Future[Response] = {
     TelemetryManager.log("EventActor::publish Identifier: " + request.getRequest.getOrDefault("identifier", ""))
-    verifyStandaloneEventAndApply(super.update, request, true)
+    val identifier = request.get("identifier").asInstanceOf[String]
+    val updatedIdentifier = if (!identifier.endsWith(".img")) s"$identifier.img" else identifier
+    request.put("identifier", updatedIdentifier)
+    // Check if the node exists
+    DataNode.read(request).flatMap { node =>
+      // If the node exists, proceed with update and delete
+      DataNode.updatev2(request, flag = true).flatMap { _ =>
+        DataNode.delete(request)
+        request.put("identifier", updatedIdentifier.replace(".img", ""))
+        verifyStandaloneEventAndApply(super.update, request, true)
+      }
+    }.recoverWith {
+      case ex: Exception =>
+        // If the node does not exist, directly call verifyStandaloneEventAndApply
+        request.put("identifier", updatedIdentifier.replace(".img", ""))
+        verifyStandaloneEventAndApply(super.update, request, true)
+    }
   }
 
   override def discard(request: Request): Future[Response] = {
@@ -140,5 +171,34 @@ class EventActor @Inject()(implicit oec: OntologyEngineContext, ss: StorageServi
         ResponseHandler.OK.put("node_id", identifier).put("identifier", identifier)
       })
     }).flatMap(f => f)
+  }
+
+  override def systemUpdate(request: Request): Future[Response] = {
+    RedisCache.delete(request.get("identifier").asInstanceOf[String])
+    val identifier = request.get("identifier").asInstanceOf[String]
+    val updatedIdentifier = if (!identifier.endsWith(".img")) s"$identifier.img" else identifier
+    DataNode.read(request).flatMap { node =>
+      // Extract attributes to be updated from the request body
+      val attributesToUpdate = request.getRequest.asInstanceOf[java.util.Map[String, AnyRef]]
+
+      // Append attributes from the request to the node's metadata
+      attributesToUpdate.forEach(new java.util.function.BiConsumer[String, AnyRef] {
+        override def accept(key: String, value: AnyRef): Unit = {
+          node.getMetadata.put(key, value)
+        }
+      })
+      // Save the updated node
+      DataNode.updatev2(request, _ => node, flag = false).recover {
+        case ex: Exception =>
+          TelemetryManager.error("Error occurred during updatev2 operation", ex)
+          ResponseHandler.ERROR(ResponseCode.SERVER_ERROR, "ERR_UPDATE_FAILED", ex.getMessage)
+      }.map(response => {
+        if (response.getResponseCode == ResponseCode.OK) {
+          ResponseHandler.OK
+        } else {
+          response
+        }
+      })
+    }
   }
 }
