@@ -1,6 +1,7 @@
 package org.sunbird.content.actors
 
 import org.apache.commons.lang.StringUtils
+import org.slf4j.{Logger, LoggerFactory}
 import org.sunbird.cache.impl.RedisCache
 import org.sunbird.common.Platform
 import org.sunbird.cloudstore.StorageService
@@ -23,7 +24,7 @@ import scala.collection.JavaConverters
 import scala.collection.JavaConverters._
 
 class EventActor @Inject()(implicit oec: OntologyEngineContext, ss: StorageService) extends ContentActor {
-
+  private val logger: Logger = LoggerFactory.getLogger("EventActor")
   override def onReceive(request: Request): Future[Response] = {
     request.getOperation match {
       case "createContent" => create(request)
@@ -67,6 +68,12 @@ class EventActor @Inject()(implicit oec: OntologyEngineContext, ss: StorageServi
       // If the node exists, proceed with update and delete
       DataNode.updatev2(request, flag = true).flatMap { _ =>
         DataNode.delete(request)
+        try {
+          RedisCache.delete(identifier)
+        } catch {
+          case e: Exception =>
+            logger.error(s"Error deleting Redis cache entry for identifier: $identifier", e)
+        }
         request.put("identifier", updatedIdentifier.replace(".img", ""))
         verifyStandaloneEventAndApply(super.update, request, true)
       }
